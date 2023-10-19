@@ -1,14 +1,8 @@
 from functools import partial
 from itertools import product
 
-from jax import Array
-
-# import jax.numpy as jnp
 import numpy as np
-from jax import random
-from chex import dataclass
-
-from jax.experimental.ode import odeint
+from dataclasses import dataclass
 
 from scipy.integrate import solve_ivp
 
@@ -16,9 +10,6 @@ from sklearn.metrics.pairwise import polynomial_kernel as sklearn_polynomial_ker
 from sklearn.metrics.pairwise import rbf_kernel as sklearn_rbf_kernel
 
 import matplotlib.pyplot as plt
-
-
-sampling_time = 0.1
 
 
 @dataclass
@@ -35,7 +26,7 @@ class SpringMassParams:
     """Damping coefficient."""
 
 
-def spring_mass_dynamics(t: float, x: Array, params):
+def spring_mass_dynamics(t: float, x: np.ndarray, params):
     q, p = x
 
     q_dot = p / params.mass
@@ -44,7 +35,7 @@ def spring_mass_dynamics(t: float, x: Array, params):
     return np.array([q_dot, p_dot])
 
 
-def spring_mass_damper_dynamics(t: float, x: Array, params):
+def spring_mass_damper_dynamics(t: float, x: np.ndarray, params):
     q, p = x
 
     q_dot = p / params.mass
@@ -53,7 +44,14 @@ def spring_mass_damper_dynamics(t: float, x: Array, params):
     return np.array([q_dot, p_dot])
 
 
-def unbiased_prediction(t, x0, x, y, W, kernel):
+def unbiased_prediction(
+    t: float,
+    x0: np.ndarray,
+    x: np.ndarray,
+    y: np.ndarray,
+    W: np.ndarray,
+    kernel: callable,
+):
     """Compute the unbiased prediction."""
 
     trajectory = []
@@ -72,7 +70,15 @@ def unbiased_prediction(t, x0, x, y, W, kernel):
     return np.array(trajectory)
 
 
-def biased_prediction(t, x0, x, y, W, kernel, dynamics):
+def biased_prediction(
+    t: float,
+    x0: np.ndarray,
+    x: np.ndarray,
+    y: np.ndarray,
+    W: np.ndarray,
+    kernel: callable,
+    dynamics: callable,
+):
     """Compute the biased prediction."""
 
     trajectory = []
@@ -107,26 +113,26 @@ def biased_prediction(t, x0, x, y, W, kernel, dynamics):
     return np.array(trajectory)
 
 
+sampling_time = 0.1
+
+# Undamped system dynamics.
 params_undamped = SpringMassParams(
     mass=1.0,
     spring_constant=1.0,
     damping_coefficient=0.0,
 )
+dynamics_undamped = partial(spring_mass_dynamics, params=params_undamped)
+
+# Damped system dynamics.
 params_damped = SpringMassParams(
     mass=1.0,
     spring_constant=1.0,
     damping_coefficient=0.5,
 )
-
-dynamics_undamped = partial(spring_mass_dynamics, params=params_undamped)
 dynamics_damped = partial(spring_mass_damper_dynamics, params=params_damped)
 
 # Define the initial condition.
 x0 = np.array([0.1, 0.1])
-
-rng = random.PRNGKey(0)
-# Set the numpy rng seed.
-np.random.seed(42)
 
 # Define the polynomial kernel.
 polynomial_kernel = partial(sklearn_polynomial_kernel, degree=2, coef0=1.0)
@@ -152,6 +158,7 @@ plt.subplots_adjust(wspace=0.05, hspace=0.05)
 
 fig.supxlabel("$q$")
 fig.supylabel("$\dot{q}$")
+
 # The top row of the figure will be the partial dataset.
 # The bottom row of the figure will be the entire dataset.
 # Going from left to right, the size of the dataset will increase.
@@ -159,21 +166,19 @@ fig.supylabel("$\dot{q}$")
 # estiamte, the biased estimate using therbf kernel, and the biased estimate with the
 # polynoimial kernel.
 
-# 100 time steps with a sampling time of 0.1.
-t = np.linspace(0, 10, 100)
+# Set the numpy rng seed.
+np.random.seed(42)
+
 
 # Compute the true (undamped) dynamics and plot them as a dashed gray line in each plot.
-# traj_undamped = odeint(dynamics_undamped, x0, t)
-traj_undamped = solve_ivp(
-    dynamics_undamped,
-    np.array([0.0, 2 * np.pi]),
-    x0,
-    t_eval=np.linspace(0.0, 2 * np.pi, 100),
-).y.T
+t = np.linspace(0.0, 2 * np.pi, 100)
+traj_undamped = solve_ivp(dynamics_undamped, np.array([0.0, 2 * np.pi]), x0, t_eval=t)
+traj_undamped = traj_undamped.y.T
 
 # Compute the true (damped) dynamics and plot them as a solid black line in each plot.
-# traj_damped = odeint(dynamics_damped, x0, t)
-traj_damped = solve_ivp(dynamics_damped, np.array([0.0, 10.0]), x0, t_eval=t).y.T
+t = np.linspace(0, 10, 100)
+traj_damped = solve_ivp(dynamics_damped, np.array([0.0, 10.0]), x0, t_eval=t)
+traj_damped = traj_damped.y.T
 
 # Iterate over all rows and columns of the figure.
 for row, col in product(range(ax.shape[0]), range(ax.shape[1])):
@@ -184,17 +189,7 @@ for row, col in product(range(ax.shape[0]), range(ax.shape[1])):
         linestyle=":",
         label="Undamped Dynamics",
     )
-    # Plot the undamped dynamics as a circle of radius 0.15 as a dashed gray line.
-    # h_undamped = ax[row, col].add_patch(
-    #     plt.Circle(
-    #         (0.0, 0.0),
-    #         0.15,
-    #         color="gray",
-    #         linestyle="--",
-    #         fill=False,
-    #         label="Undamped Dynamics",
-    #     )
-    # )
+
     h_damped = ax[row, col].plot(
         traj_damped[:, 0],
         traj_damped[:, 1],
@@ -208,24 +203,20 @@ for row, col in product(range(ax.shape[0]), range(ax.shape[1])):
 
 
 # Generate a sample from the system.
-# Sample x uniformly within the region [-0.15, 0.15] x [-0.15, 0.15] and then secondly from [0, 0.15] x [0, 0.15].
+# Sample x uniformly within the region [-0.15, 0.15] x [-0.15, 0.15]
+# and then secondly from [0, 0.15] x [0, 0.15].
 sample_size = 500
-# Generate a random key.
-key, subkey1, subkey2 = random.split(rng, 3)
-# x_entire = random.uniform(subkey1, shape=(sample_size, 2), minval=-0.15, maxval=0.15)
-# x_partial = random.uniform(subkey2, shape=(sample_size, 2), minval=0.0, maxval=0.15)
+
 x_entire = np.random.uniform(-0.15, 0.15, size=(sample_size, 2))
 x_partial = np.random.uniform(0.0, 0.15, size=(sample_size, 2))
 y_entire = []
 y_partial = []
 for i in range(sample_size):
     y_entire.append(
-        # odeint(dynamics_damped, x_entire[i], np.array([0.0, sampling_time]))[-1],
         solve_ivp(dynamics_damped, np.array([0.0, sampling_time]), x_entire[i]).y[:, -1]
         + np.random.normal(0.0, 0.0001, size=(2,))
     )
     y_partial.append(
-        # odeint(dynamics_damped, x_partial[i], np.array([0.0, sampling_time]))[-1],
         solve_ivp(dynamics_damped, np.array([0.0, sampling_time]), x_partial[i]).y[
             :, -1
         ]
@@ -240,10 +231,6 @@ regularization_parameter = 1 / (sample_size**2)
 
 
 for i, M in enumerate([10, 50, 100, 500]):
-    # Generate a random key.
-    key, subkey = random.split(rng, 2)
-    # idx = random.choice(subkey, sample_size, shape=(M,), replace=False)
-    # idx = slice(0, M)
     idx = np.random.choice(sample_size, size=M, replace=False)
 
     x_partial_subset = x_partial[idx]
@@ -258,7 +245,6 @@ for i, M in enumerate([10, 50, 100, 500]):
         color="gray",
         alpha=0.2,
         label="Data",
-        # Smaller markers.
         s=5,
     )
     ax[1, i].scatter(
@@ -266,7 +252,6 @@ for i, M in enumerate([10, 50, 100, 500]):
         x_entire_subset[:, 1],
         color="gray",
         alpha=0.2,
-        # Smaller markers.
         s=5,
     )
 
@@ -443,23 +428,16 @@ for i in range(ax.shape[0]):
     ax[i, 2].set_yticks([-0.1, 0.0, 0.1])
     ax[i, 3].set_yticks([-0.1, 0.0, 0.1])
 
-    # ax[i, 1].set_yticks([])
     ax[i, 1].set_yticklabels([])
 
-    # ax[i, 2].set_yticks([])
     ax[i, 2].set_yticklabels([])
 
-    # ax[i, 3].set_yticks([])
     ax[i, 3].set_yticklabels([])
 
     # Remove the y tick marks, but don't set it to empty.
     ax[i, 1].tick_params(axis="y", which="both", left=False, right=False)
     ax[i, 2].tick_params(axis="y", which="both", left=False, right=False)
     ax[i, 3].tick_params(axis="y", which="both", left=False, right=False)
-
-# plt.tight_layout()
-# box = ax.get_position()
-# ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
 
 # Display a legend above the figure that has three columns of labels.
 fig.legend(
@@ -472,33 +450,14 @@ fig.legend(
         h_biased_rbf[0],
         h_biased_poly[0],
     ],
-    # [
-    #     "Undamped Dynamics",
-    #     "True Dynamics",
-    #     "Unbiased Prediction (RBF)",
-    #     "Unbiased Prediction (Polynomial)",
-    #     "Biased Prediction (RBF)",
-    #     "Biased Prediction (Polynomial)",
-    # ],
     loc="outside upper center",
-    # bbox_to_anchor=(0.0, 1.02, 1.0, 0.102),
     ncol=3,
-    # remove the legend border.
     frameon=False,
 )
-
-# # Add extra space for the legend.
-# plt.subplots_adjust(top=0.82)
-# # Add more room for the bottom label.
-# plt.subplots_adjust(bottom=0.15)
-
-# plt.subplots_adjust(left=0.12, right=0.95, wspace=0.05, hspace=0.05)
 
 plt.subplots_adjust(
     top=0.85, bottom=0.1, left=0.1, right=0.95, wspace=0.07, hspace=0.07
 )
-
-# Center up the supxlabel.
 fig.supxlabel("$q$", x=0.525)
 
 
