@@ -1,0 +1,6 @@
+{
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"postCreateCommand": "pip3 install --user -r requirements.txt",
+}
