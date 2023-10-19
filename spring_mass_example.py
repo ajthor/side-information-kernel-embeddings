@@ -12,6 +12,9 @@ from sklearn.metrics.pairwise import rbf_kernel as sklearn_rbf_kernel
 import matplotlib.pyplot as plt
 
 
+sampling_time = 0.1
+
+
 @dataclass
 class SpringMassParams:
     """Spring-mass-damper parameters."""
@@ -112,8 +115,6 @@ def biased_prediction(
 
     return np.array(trajectory)
 
-
-sampling_time = 0.1
 
 # Undamped system dynamics.
 params_undamped = SpringMassParams(
