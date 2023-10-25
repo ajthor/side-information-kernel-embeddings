@@ -28,10 +28,6 @@ ax.grid(True, which="both", axis="both", linestyle="-", alpha=0.5)
 # Set the x-axis limits.
 ax.set_xlim(np.min(sample_sizes), np.max(sample_sizes))
 
-# Set the x-axis ticks as being [1, 100, 1000, 5000].
-# ax.set_xticks([1, 100, 1000, 5000])
-# ax.set_xticklabels(["1", "100", "1000", "5000"])
-
 ax.set_xlabel("Sample Size")
 ax.set_ylabel("Prediction Error")
 
@@ -45,7 +41,7 @@ ax.fill_between(
     linewidth=0.0,
 )
 
-# Plot the standard deviation of the biased polynomial as a shaded orange region.
+# Plot the standard deviation of the unbiased polynomial as a shaded orange region.
 ax.fill_between(
     sample_sizes,
     mean[:, 1] - std[:, 1],
@@ -55,11 +51,21 @@ ax.fill_between(
     linewidth=0.0,
 )
 
-# Plot the standard deviation of the biased RBF as a shaded blue region.
+# Plot the standard deviation of the biased polynomial as a shaded orange region.
 ax.fill_between(
     sample_sizes,
     mean[:, 2] - std[:, 2],
     mean[:, 2] + std[:, 2],
+    alpha=0.2,
+    color="C1",
+    linewidth=0.0,
+)
+
+# Plot the standard deviation of the biased RBF as a shaded blue region.
+ax.fill_between(
+    sample_sizes,
+    mean[:, 3] - std[:, 3],
+    mean[:, 3] + std[:, 3],
     alpha=0.2,
     color="C0",
     linewidth=0.0,
@@ -71,7 +77,18 @@ ax.plot(
     mean[:, 0],
     label="Unbiased Error (RBF)",
     color="C0",
-    linestyle="--",
+    linestyle=":",
+    marker=".",
+    clip_on=False,
+)
+
+# Plot the mean error of the unbiased polynomial as a dashed orange line with small circles.
+ax.plot(
+    sample_sizes,
+    mean[:, 1],
+    label="Unbiased Error (Polynomial)",
+    color="C1",
+    linestyle=":",
     marker=".",
     clip_on=False,
 )
@@ -79,24 +96,30 @@ ax.plot(
 # Plot the mean error of the biased polynomial as a solid orange line.
 ax.plot(
     sample_sizes,
-    mean[:, 1],
+    mean[:, 2],
     label="Biased Error (Polynomial)",
     color="C1",
     linestyle="-",
-    marker="o",
+    marker=".",
     clip_on=False,
 )
 
 # Plot the mean error of the biased RBF as a solid blue line.
 ax.plot(
     sample_sizes,
-    mean[:, 2],
+    mean[:, 3],
     label="Biased Error (RBF)",
     color="C0",
     linestyle="-",
-    marker="o",
+    marker=".",
     clip_on=False,
 )
 
+# Add a legend.
+ax.legend(
+    loc="upper right",
+    prop={"size": 8},
+)
 
+# plt.tight_layout()
 plt.savefig("spring_mass_error_plot.pdf", bbox_inches="tight")

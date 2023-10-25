@@ -154,6 +154,7 @@ fig, ax = plt.subplots(2, 4, figsize=(7, 4), dpi=300)
 
 # Set the font size to 8pt.
 plt.rcParams.update({"font.size": 8})
+
 # Reduce the spacing between subplots.
 plt.subplots_adjust(wspace=0.05, hspace=0.05)
 
@@ -168,8 +169,8 @@ fig.supylabel("$\dot{q}$")
 # polynoimial kernel.
 
 # Set the numpy rng seed.
-np.random.seed(42)
-
+np.random.seed(4)
+# 2
 
 # Compute the true (undamped) dynamics and plot them as a dashed gray line in each plot.
 t = np.linspace(0.0, 2 * np.pi, 100)
@@ -454,6 +455,8 @@ fig.legend(
     loc="outside upper center",
     ncol=3,
     frameon=False,
+    # Set font size to 8pt.
+    prop={"size": 8},
 )
 
 plt.subplots_adjust(

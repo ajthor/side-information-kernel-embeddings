@@ -148,13 +148,14 @@ rbf_kernel = partial(sklearn_rbf_kernel, gamma=gamma)
 
 
 # Define the experiment parameters.
-sample_sizes = np.linspace(10, 5000, 10, dtype=int)
+# sample_sizes = np.linspace(10, 5000, 10, dtype=int)
+sample_sizes = np.logspace(1, 3, 20, dtype=int)
 num_trials = 100
 
-results = np.zeros((len(sample_sizes), num_trials, 3))
+results = np.zeros((len(sample_sizes), num_trials, 4))
 
 # Set the random seed.
-np.random.seed(42)
+np.random.seed(0)
 
 
 def generate_dataset(sample_size):
@@ -164,7 +165,7 @@ def generate_dataset(sample_size):
     for i in range(sample_size):
         y[i] = solve_ivp(dynamics_damped, np.array([0.0, sampling_time]), x[i]).y[
             :, -1
-        ]  # + np.random.normal(0.0, 0.0001, size=(2,))
+        ] + np.random.normal(0.0, 0.0001, size=(2,))
 
     return x, y
 
@@ -216,7 +217,6 @@ def debug_plot_gram_matrix(K):
 for i, sample_size in tqdm(enumerate(sample_sizes), total=len(sample_sizes)):
     # Define the regularization parameter.
     regularization_parameter = 1 / (sample_size**2)
-    # regularization_parameter = 1e-3
 
     for j in range(num_trials):
         # Generate the dataset.
@@ -252,6 +252,15 @@ for i, sample_size in tqdm(enumerate(sample_sizes), total=len(sample_sizes)):
             rbf_kernel,
         )
 
+        traj_unbiased_polynomial = unbiased_prediction(
+            np.linspace(0.0, 10.0, 100),
+            x0,
+            x,
+            y,
+            K_polynomial_inv,
+            polynomial_kernel,
+        )
+
         # Compute the biased prediction.
         traj_biased_polynomial = biased_prediction(
             np.linspace(0.0, 10.0, 100),
@@ -275,8 +284,9 @@ for i, sample_size in tqdm(enumerate(sample_sizes), total=len(sample_sizes)):
 
         # Compute the prediction error.
         results[i, j, 0] = compute_prediction_error(true_y, traj_unbiased_rbf)
-        results[i, j, 1] = compute_prediction_error(true_y, traj_biased_polynomial)
-        results[i, j, 2] = compute_prediction_error(true_y, traj_biased_rbf)
+        results[i, j, 1] = compute_prediction_error(true_y, traj_unbiased_polynomial)
+        results[i, j, 2] = compute_prediction_error(true_y, traj_biased_polynomial)
+        results[i, j, 3] = compute_prediction_error(true_y, traj_biased_rbf)
 
 # Save the results to an npz file.
 np.savez(
